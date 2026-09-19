@@ -7,22 +7,73 @@ defmodule JobProcessingServiceTest do
   @opts Router.init([])
 
   test "POST /job returns a JSON response" do
-    payload = %{"tasks" => [%{"name" => "task-1", "command" => "echo ok"}]}
+    payload = %{
+      "tasks" => [
+        %{
+          "name" => "task-1",
+          "command" => "touch task1"
+        },
+        %{
+          "name" => "task-3",
+          "command" => "touch task3",
+          "requires" => ["task-2"]
+        },
+        %{
+          "name" => "task-2",
+          "command" => "touch task2",
+          "requires" => ["task-1"]
+        }
+      ]
+    }
+
     conn = post_json("/job?format=json", payload)
 
     assert conn.status == 200
-    # TODO to be updated later
-    assert Jason.decode!(conn.resp_body) == %{"tasks" => []}
+
+    assert Jason.decode!(conn.resp_body) == %{
+             "tasks" => [
+               %{
+                 "name" => "task-1",
+                 "command" => "touch task1"
+               },
+               %{
+                 "name" => "task-2",
+                 "command" => "touch task2"
+               },
+               %{
+                 "name" => "task-3",
+                 "command" => "touch task3"
+               }
+             ]
+           }
+
     assert Plug.Conn.get_resp_header(conn, "content-type") == ["application/json; charset=utf-8"]
   end
 
   test "POST /job returns a BASH response" do
-    payload = %{"tasks" => [%{"name" => "task-1", "command" => "echo ok"}]}
+    payload = %{
+      "tasks" => [
+        %{
+          "name" => "task-1",
+          "command" => "touch task1"
+        },
+        %{
+          "name" => "task-3",
+          "command" => "touch task3",
+          "requires" => ["task-2"]
+        },
+        %{
+          "name" => "task-2",
+          "command" => "touch task2",
+          "requires" => ["task-1"]
+        }
+      ]
+    }
+
     conn = post_json("/job?format=bash", payload)
 
     assert conn.status == 200
-    # TODO to be updated later
-    assert conn.resp_body == "script"
+    assert conn.resp_body == "#!/usr/bin/env bash\ntouch task1\ntouch task2\ntouch task3"
 
     assert Plug.Conn.get_resp_header(conn, "content-type") == [
              "text/x-shellscript; charset=utf-8"
@@ -50,6 +101,22 @@ defmodule JobProcessingServiceTest do
 
     assert Jason.decode!(conn.resp_body) == %{
              "error" => "Every task that is required by another one must exist in the payload"
+           }
+  end
+
+  test "POST /job rejects a task that requires itself" do
+    payload = %{
+      "tasks" => [
+        %{"name" => "task-1", "command" => "echo ok", "requires" => ["task-1"]}
+      ]
+    }
+
+    conn = post_json("/job?format=json", payload)
+
+    assert conn.status == 400
+
+    assert Jason.decode!(conn.resp_body) == %{
+             "error" => "A task cannot require itself"
            }
   end
 

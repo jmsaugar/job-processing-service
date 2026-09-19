@@ -32,7 +32,8 @@ defmodule JobProcessingService.Job.Validator do
   def validate(payload) do
     with :ok <- ExJsonSchema.Validator.validate(@schema, payload),
          :ok <- validate_task_names(payload),
-         :ok <- validate_required_tasks(payload) do
+         :ok <- validate_required_tasks(payload),
+         :ok <- validate_no_self_requirements(payload) do
       :ok
     else
       {:error, errors} when is_list(errors) -> {:error, format_errors(errors)}
@@ -61,6 +62,15 @@ defmodule JobProcessingService.Job.Validator do
       :ok
     else
       {:error, "Every task that is required by another one must exist in the payload"}
+    end
+  end
+
+  # No task that requires itself
+  defp validate_no_self_requirements(%{"tasks" => tasks}) do
+    if Enum.all?(tasks, fn task -> task["name"] not in Map.get(task, "requires", []) end) do
+      :ok
+    else
+      {:error, "A task cannot require itself"}
     end
   end
 

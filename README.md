@@ -9,14 +9,39 @@ mix deps.get
 mix run --no-halt
 ```
 
-The server listens on port 4000. In another terminal:
+### Manual testing
+
+The service can be tested manually using curl requests.
+
+The specifications of the service are:
+
+- Endpoints: POST `/job/`
+- Payload: as per project specs:
+```json
+{
+  "tasks": [
+    {
+      "name": "The task name",
+      "command": "echo 'the task bash command'",
+      "requires": ["optional", "list", "of", "task", "names", "dependencies"]
+    },
+    ...
+  ]
+}
+```
+- Output: the output can be set via the `output` query param, which accepts `json` or `bash` and sends content-type HTTP header accordingly.
 
 ```sh
-curl http://localhost:4000/job
+curl -i -X POST 'http://localhost:4000/job?format=json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "tasks": [
+      {"name": "A", "command": "touch A", "requires": ["B"]},
+      {"name": "B", "command": "touch B", "requires": ["C"]},
+      {"name": "C", "command": "touch C", "requires": ["A"]}
+    ]
+  }'
 ```
-
-`GET /job` returns HTTP 200 with `{"status":"ok"}`. This is a placeholder
-endpoint; it does not process or store jobs yet. Other paths and methods return 404.
 
 ## Linting / static analysis
 ```sh
@@ -24,7 +49,7 @@ mix credo
 mix dialyzer
 ```
 
-## Test
+## Unit testing
 
 ```sh
 mix test

@@ -8,7 +8,7 @@ defmodule JobProcessingService.Job.Output do
   @type t :: %{tasks: [Processor.task()]}
   @type output :: t() | String.t()
   @type format :: :json | :bash
-  @type reason :: {:cyclic_dependencies, [String.t()]}
+  @type reason :: {:cyclic_dependencies, [[String.t()]]}
   @type result :: {:ok, output()} | {:error, %{error: String.t()}}
 
   @spec new({:ok, [Processor.task()]} | {:error, reason()}, format()) :: result()
@@ -20,8 +20,8 @@ defmodule JobProcessingService.Job.Output do
     {:ok, Enum.join(["#!/usr/bin/env bash" | Enum.map(tasks, & &1["command"])], "\n")}
   end
 
-  def new({:error, {:cyclic_dependencies, cycle}}, _format) do
-    stringified_cycle = Enum.join(cycle, " -> ")
-    {:error, %{error: "There is a task cycle: #{stringified_cycle}"}}
+  def new({:error, {:cyclic_dependencies, cycles}}, _format) do
+    stringified_cycles = "[#{Enum.map_join(cycles, "] -- [", &Enum.join(&1, " -> "))}]"
+    {:error, %{error: "There are tasks cycles: #{stringified_cycles}"}}
   end
 end

@@ -32,13 +32,13 @@ The specifications of the service are:
 - Output: the output can be set via the `output` query param, which accepts `json` or `bash` and sends content-type HTTP header accordingly.
 
 ```sh
-curl -i -X POST 'http://localhost:4000/job?format=json' \
+curl -i -X POST 'http://localhost:4000/job?format=json&algorithm=manual' \
   -H 'Content-Type: application/json' \
   -d '{
     "tasks": [
       {"name": "A", "command": "touch A", "requires": ["B"]},
       {"name": "B", "command": "touch B", "requires": ["C"]},
-      {"name": "C", "command": "touch C", "requires": ["A"]}
+      {"name": "C", "command": "touch C"}
     ]
   }'
 ```

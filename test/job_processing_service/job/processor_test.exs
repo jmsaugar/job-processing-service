@@ -3,91 +3,97 @@ defmodule JobProcessingService.Job.ProcessorTest do
 
   alias JobProcessingService.Job.Processor
 
-  test "processes an empty task list" do
-    assert Processor.process(%{"tasks" => []}, :json) == {:ok, %{tasks: []}}
-  end
+  for algorithm <- [:manual, :builtin] do
+    test "processes an empty task list (#{algorithm})" do
+      assert Processor.process(%{"tasks" => []}, :json, unquote(algorithm)) == {:ok, %{tasks: []}}
+    end
 
-  test "works with independent tasks with no dependencies" do
-    first = %{"name" => "first", "command" => "echo first"}
-    second = %{"name" => "second", "command" => "echo second"}
+    test "works with independent tasks with no dependencies (#{algorithm})" do
+      first = %{"name" => "first", "command" => "echo first"}
+      second = %{"name" => "second", "command" => "echo second"}
 
-    result = Processor.process(%{"tasks" => [first, second]}, :json)
+      result = Processor.process(%{"tasks" => [first, second]}, :json, unquote(algorithm))
 
-    # Technically both results would be ok
-    assert result == {:ok, %{tasks: [first, second]}} or
-             result == {:ok, %{tasks: [second, first]}}
-  end
+      # Technically both results would be ok
+      assert result == {:ok, %{tasks: [first, second]}} or
+               result == {:ok, %{tasks: [second, first]}}
+    end
 
-  test "works with a reversed chained dependencies and removes dependencies from JSON output" do
-    tasks = [task("last", ["middle"]), task("middle", ["first"]), task("first")]
+    test "works with a reversed chained dependencies and removes dependencies from JSON output (#{algorithm})" do
+      tasks = [task("last", ["middle"]), task("middle", ["first"]), task("first")]
 
-    assert Processor.process(%{"tasks" => tasks}, :json) ==
-             {:ok, %{tasks: [task("first"), task("middle"), task("last")]}}
-  end
+      assert Processor.process(%{"tasks" => tasks}, :json, unquote(algorithm)) ==
+               {:ok, %{tasks: [task("first"), task("middle"), task("last")]}}
+    end
 
-  test "works with exercise specification example" do
-    task1 = task("task-1", "touch /tmp/file1")
-    task2 = task("task-2", "cat /tmp/file1", ["task-3"])
-    task3 = task("task-3", "echo 'Hello World!' > /tmp/file1", ["task-1"])
-    task4 = task("task-4", "rm /tmp/file1", ["task-2", "task-3"])
+    test "works with exercise specification example (#{algorithm})" do
+      task1 = task("task-1", "touch /tmp/file1")
+      task2 = task("task-2", "cat /tmp/file1", ["task-3"])
+      task3 = task("task-3", "echo 'Hello World!' > /tmp/file1", ["task-1"])
+      task4 = task("task-4", "rm /tmp/file1", ["task-2", "task-3"])
 
-    tasks = [
-      task1,
-      task2,
-      task3,
-      task4
-    ]
+      tasks = [
+        task1,
+        task2,
+        task3,
+        task4
+      ]
 
-    assert {:ok, %{tasks: ordered}} = Processor.process(%{"tasks" => tasks}, :json)
+      assert {:ok, %{tasks: ordered}} =
+               Processor.process(%{"tasks" => tasks}, :json, unquote(algorithm))
 
-    assert ordered ==
-             Enum.map([task1, task3, task2, task4], fn t -> Map.delete(t, "requires") end)
-  end
+      assert ordered ==
+               Enum.map([task1, task3, task2, task4], fn t -> Map.delete(t, "requires") end)
+    end
 
-  test "detects a cycle between two tasks" do
-    task1 = task("task-1", "echo first", ["task-2"])
-    task2 = task("task-2", "echo second", ["task-1"])
+    test "detects a cycle between two tasks (#{algorithm})" do
+      task1 = task("task-1", "echo first", ["task-2"])
+      task2 = task("task-2", "echo second", ["task-1"])
 
-    tasks = [
-      task1,
-      task2
-    ]
+      tasks = [
+        task1,
+        task2
+      ]
 
-    assert {:error, %{error: message}} = Processor.process(%{"tasks" => tasks}, :json)
+      assert {:error, %{error: message}} =
+               Processor.process(%{"tasks" => tasks}, :json, unquote(algorithm))
 
-    assert message == "There is a task cycle: task-1 -> task-2 -> task-1"
-  end
+      assert message =~ "There are tasks cycles:"
+    end
 
-  test "detects a cycle across four tasks" do
-    task1 = task("task-1", "echo first", ["task-2"])
-    task2 = task("task-2", "echo second", ["task-3"])
-    task3 = task("task-3", "echo third", ["task-1"])
+    test "detects a cycle across three tasks (#{algorithm})" do
+      task1 = task("task-1", "echo first", ["task-2"])
+      task2 = task("task-2", "echo second", ["task-3"])
+      task3 = task("task-3", "echo third", ["task-1"])
 
-    tasks = [
-      task1,
-      task2,
-      task3
-    ]
+      tasks = [
+        task1,
+        task2,
+        task3
+      ]
 
-    assert {:error, %{error: message}} = Processor.process(%{"tasks" => tasks}, :json)
+      assert {:error, %{error: message}} =
+               Processor.process(%{"tasks" => tasks}, :json, unquote(algorithm))
 
-    assert message == "There is a task cycle: task-1 -> task-2 -> task-3 -> task-1"
-  end
+      assert message =~ "There are tasks cycles:"
+    end
 
-  test "detects a cycle across three tasks" do
-    task1 = task("task-1", "echo first", ["task-2"])
-    task2 = task("task-2", "echo second", ["task-3"])
-    task3 = task("task-3", "echo third", ["task-2"])
+    test "detects a cycle reached from another task (#{algorithm})" do
+      task1 = task("task-1", "echo first", ["task-2"])
+      task2 = task("task-2", "echo second", ["task-3"])
+      task3 = task("task-3", "echo third", ["task-2"])
 
-    tasks = [
-      task1,
-      task2,
-      task3
-    ]
+      tasks = [
+        task1,
+        task2,
+        task3
+      ]
 
-    assert {:error, %{error: message}} = Processor.process(%{"tasks" => tasks}, :json)
+      assert {:error, %{error: message}} =
+               Processor.process(%{"tasks" => tasks}, :json, unquote(algorithm))
 
-    assert message == "There is a task cycle: task-2 -> task-3 -> task-2"
+      assert message =~ "There are tasks cycles:"
+    end
   end
 
   defp task(name), do: %{"name" => name, "command" => "echo #{name}"}

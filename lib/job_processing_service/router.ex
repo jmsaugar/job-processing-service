@@ -14,8 +14,9 @@ defmodule JobProcessingService.Router do
     conn = fetch_query_params(conn)
 
     with {:ok, format} <- output_format(conn.query_params),
+         {:ok, algorithm} <- selected_algo(conn.query_params),
          :ok <- Job.Validator.validate(conn.body_params),
-         {:ok, output} <- Job.Processor.process(conn.body_params, format) do
+         {:ok, output} <- Job.Processor.process(conn.body_params, format, algorithm) do
       case format do
         :json -> json(conn, 200, output)
         :bash -> bash(conn, 200, output)
@@ -23,6 +24,8 @@ defmodule JobProcessingService.Router do
     else
       # Query parameter error
       {:error, :query, message} -> json(conn, 400, %{error: message})
+      # Processing errors already formatted by Output.
+      {:error, %{error: _} = output} -> json(conn, 422, output)
       # Validation errors.
       {:error, message} -> json(conn, 400, %{error: message})
     end
@@ -49,6 +52,14 @@ defmodule JobProcessingService.Router do
       "json" -> {:ok, :json}
       "bash" -> {:ok, :bash}
       _ -> {:error, :query, "format must be json or bash"}
+    end
+  end
+
+  defp selected_algo(params) do
+    case Map.get(params, "algorithm", "manual") do
+      "manual" -> {:ok, :manual}
+      "builtin" -> {:ok, :builtin}
+      _ -> {:error, :query, "selected_algo must be manual or builtin"}
     end
   end
 end

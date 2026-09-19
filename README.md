@@ -18,6 +18,12 @@ curl http://localhost:4000/job
 `GET /job` returns HTTP 200 with `{"status":"ok"}`. This is a placeholder
 endpoint; it does not process or store jobs yet. Other paths and methods return 404.
 
+## Linting / static analysis
+```sh
+mix credo
+mix dialyzer
+```
+
 ## Test
 
 ```sh

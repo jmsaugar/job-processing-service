@@ -24,6 +24,7 @@ defmodule JobProcessingService.MixProject do
     [
       {:plug_cowboy, "~> 2.9"},
       {:jason, "~> 1.4"},
+      {:ex_json_schema, "~> 0.11.5"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]

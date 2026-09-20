@@ -7,6 +7,7 @@ defmodule JobProcessingService.MixProject do
       version: "0.1.0",
       elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
+      aliases: [start: &start/1],
       deps: deps()
     ]
   end
@@ -17,6 +18,22 @@ defmodule JobProcessingService.MixProject do
       mod: {JobProcessingService.Application, []},
       extra_applications: [:logger]
     ]
+  end
+
+  defp start(args) do
+    case OptionParser.parse(args, strict: [port: :integer]) do
+      {[], [], []} ->
+        :ok
+
+      {[port: port], [], []} when port in 1..65_535 ->
+        Mix.Task.run("app.config")
+        Application.put_env(:job_processing_service, :port, port)
+
+      _ ->
+        Mix.raise("Usage: mix start [--port PORT], where PORT is an integer from 1 to 65535")
+    end
+
+    Mix.Task.run("run", ["--no-halt"])
   end
 
   # Run "mix help deps" to learn about dependencies.

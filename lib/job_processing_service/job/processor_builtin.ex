@@ -1,6 +1,7 @@
 defmodule JobProcessingService.Job.ProcessorBuiltin do
   @moduledoc """
   Orders validated tasks using Erlang's digraph utilities.
+  https://www.erlang.org/doc/apps/stdlib/digraph.html
   """
 
   alias JobProcessingService.Job.Processor
@@ -19,7 +20,6 @@ defmodule JobProcessingService.Job.ProcessorBuiltin do
         Enum.each(task["requires"] || [], &:digraph.add_edge(graph, &1, task["name"]))
       end)
 
-      # Check components explicitly: topsort can accept single-vertex self-loops.
       case :digraph_utils.cyclic_strong_components(graph) do
         [] ->
           names = :digraph_utils.topsort(graph)

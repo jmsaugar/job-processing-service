@@ -3,6 +3,7 @@ defmodule JobProcessingService.Router do
   Routes HTTP requests to the job endpoint.
   """
   use Plug.Router
+  use Plug.ErrorHandler
 
   alias JobProcessingService.Job
 
@@ -24,7 +25,7 @@ defmodule JobProcessingService.Router do
     else
       # Query parameter error
       {:error, :query, message} -> json(conn, 400, %{error: message})
-      # Processing errors already formatted by Output.
+      # Processing errors found by processing (e.g. cycles) already formatted by Output.
       {:error, %{error: _} = output} -> json(conn, 422, output)
       # Validation errors.
       {:error, message} -> json(conn, 400, %{error: message})
@@ -33,6 +34,11 @@ defmodule JobProcessingService.Router do
 
   match _ do
     send_resp(conn, 404, "Not found")
+  end
+
+  @impl Plug.ErrorHandler
+  def handle_errors(conn, %{reason: reason} = _data) do
+    json(conn, conn.status, %{error: Exception.message(reason)})
   end
 
   defp json(conn, status, body) do

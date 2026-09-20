@@ -80,6 +80,20 @@ defmodule JobProcessingServiceTest do
            ]
   end
 
+  test "POST /job rejects a badly formed JSON payload" do
+    # Can't use the `post_json` helper here because it asumes a valid map -> json
+    conn =
+      conn(:post, "/job", "{ this is not a valid json }")
+      |> Plug.Conn.put_req_header("content-type", "application/json")
+
+    assert_raise Plug.Parsers.ParseError, fn ->
+      Router.call(conn, @opts)
+    end
+
+    {status, _headers, _body} = sent_resp(conn)
+    assert status == 400
+  end
+
   test "POST /job rejects a payload that does not match the JSON schema" do
     payload = %{"tasks" => [%{"name" => "task-1"}]}
     conn = post_json("/job?format=json", payload)
